@@ -1,0 +1,79 @@
+{
+  "name": "rgl",
+  "version": "0.0.0",
+  "description": "An engine that supports colors for RogueLike games.",
+  "keywords": [
+    "RGL",
+    "colors",
+    "roguelike",
+    "format"
+  ],
+  "homepage": "https://github.com/Valen-H/RGL#README.md",
+  "bugs": {
+    "url": "https://github.com/Valen-H/RGL/issues",
+    "email": "alternativexxxy@gmail.com"
+  },
+  "license": "ISC",
+  "author": "V. H. <alternativexxxy@gmail.com> (https://github.com/Valen-H)",
+  "contributors": [
+    
+  ],
+  "files": [
+    "*"
+  ],
+  "main": "./dist/lib/rgl.js",
+  "browser": false,
+  "man": [],
+  "directories": {
+    "lib": "./lib",
+    "bin": "./bin",
+    "man": "./man",
+    "doc": "./doc",
+    "example": "./test",
+    "test": "./test"
+  },
+  "typings": "./lib/typings/rgl.d.ts",
+  "typesVersions": {
+    ">=3.0": {
+      "*": [
+        "./lib/*"
+      ]
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Valen-H/RGL.git",
+    "directory": "./"
+  },
+  "config": {
+    "port": 8080
+  },
+  "dependencies": {
+    "chalk": "^3.0.0",
+    "fs-extra": "^8.1.0",
+    "tslib": "^1.11.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^8.1.0",
+    "@types/node": "^13.7.7",
+    "typescript": "^3.8.3"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": ">=12.0.0",
+    "npm": ">=3.0.0"
+  },
+  "engineStrict": false,
+  "os": [],
+  "cpu": [],
+  "preferGlobal": true,
+  "private": false,
+  "publishConfig": {},
+  "scripts": {
+    "start": "node test/index.js",
+    "test": "set NODE_DEBUG=RGL*&&node test/index.js",
+    "build": "tsc -w"
+  },
+  "bundleDependencies": []
+}

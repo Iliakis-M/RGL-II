@@ -1,0 +1,62 @@
+{
+	"compilerOptions": {
+		"declaration": true,
+		"declarationDir": "lib/typings/",
+		"allowJs": true,
+		"checkJs": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		"module": "commonjs",
+		"outDir": "dist/",
+		"preserveConstEnums": true,
+		"removeComments": false,
+		"target": "esnext",
+		"jsx": "react",
+		"inlineSourceMap": true,
+		"inlineSources": true,
+		"composite": true,
+		"diagnostics": true,
+		"declarationMap": true,
+		"esModuleInterop": true,
+		"importHelpers": true,
+		"incremental": true,
+		"pretty": true,
+		"resolveJsonModule": true,
+		"strict": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"strictNullChecks": true,
+		"downlevelIteration": true,
+		"build": true,
+		"watch": true,
+		"tsBuildInfoFile": "tsconfig.tsbuildinfo",
+		"moduleResolution": "node",
+		"baseUrl": "lib",
+		"rootDirs": [
+			"bin",
+			"lib",
+			"test"
+		],
+		"paths": {
+			"*": [
+				"*",
+				"..*",
+				"../..*"
+			]
+		},
+		"traceResolution": true
+	},
+	"jsdoc": "doc",
+	"compileOnSave": true,
+	"include": [
+		"lib/**/*.ts",
+		"test/**/*.ts",
+		"bin/**/*.ts"
+	],
+	"exclude": [
+		"./node_modules/",
+		"dist/",
+		"lib/typings"
+	]
+}
