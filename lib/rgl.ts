@@ -23,7 +23,8 @@ export module rgl {
 
 
 	const _mappings_c: Map<number, Mapping> = require(path.resolve(__dirname, "..", "..", "RGLMappings_c.js")),
-		_mappings_b: Map<number, Mapping> = require(path.resolve(__dirname, "..", "..", "RGLMappings_b.js"));
+		_mappings_b: Map<number, Mapping> = require(path.resolve(__dirname, "..", "..", "RGLMappings_b.js")),
+		_mappings_s: Map < number, Mapping > = require(path.resolve(__dirname, "..", "..", "RGLMappings_s.js"));
 	
 
 	/**
@@ -76,15 +77,20 @@ export module rgl {
 	class RGLTile implements Types.Convertable {
 
 		public static decoder: StringDecoder = new StringDecoder("utf8");
+		static mappings_c: Map<number, Mapping>;
+		static mappings_b: Map<number, Mapping>;
+		static mappings_s: Map<number, Mapping>;
 		private static trim: RegExp = /\u0000/gim;
 
 		protected precalc: string = "";
+		private reserved: number;
 
 
 		protected constructor(protected readonly origin: Readonly<Buffer>) {
 			assert.ok(origin.length == 8, Errors.EBADBUF);
 
-			this.precalc = RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, '');  // TODO: Colors!
+			this.precalc = (RGLTile.mappings_s.get(origin[6]) || (t => t))((RGLTile.mappings_b.get(origin[5]) || (t => t))((RGLTile.mappings_c.get(origin[4]) || (t => t))(RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, ''))));
+			this.reserved = origin[7];
 		} //ctor
 
 
@@ -201,6 +207,9 @@ export module rgl {
 	 */
 	export class RGL {
 
+		protected static mappings_s: Map<number, Mapping> = _mappings_s; 
+
+
 		protected constructor(
 			autoconfig: boolean = true,
 			public mappings_c: Map<number, Mapping> = _mappings_c,
@@ -217,21 +226,30 @@ export module rgl {
 				Promise.all([
 					this.loadMappings_c(),
 					this.loadMappings_b()
-				]).catch(() => debug_e("RGL.autoconf: EMAPPING"));
+				]).catch(() => debug_e("RGL.autoconf: EMAPPING")).then(() => {
+					this._Tile.mappings_c = this.mappings_c;
+					this._Tile.mappings_b = this.mappings_b;
+
+					debug("RGL.ctor deffered mappings.");
+				});
 			}
+
+			this._Tile.mappings_c = this.mappings_c;
+			this._Tile.mappings_b = this.mappings_b;
+			this._Tile.mappings_s = RGL.mappings_s;
 		} //ctor
 
 
 		public async loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
 		public loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
 		public loadMappings_c(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_c.js"): Promise<Map<number, Mapping>> {
-			return this.loadMappings(map, this.mappings_c);
+			return RGL.loadMappings(map, this.mappings_c);
 		} //loadMappings_c
 
 		public async loadMappings_b(path?: Readonly<string>): Promise<Map<number, Mapping>>;
 		public loadMappings_b(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
 		public loadMappings_b(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_b.js"): Promise<Map<number, Mapping>> {
-			return this.loadMappings(map, this.mappings_b);
+			return RGL.loadMappings(map, this.mappings_b);
 		} //loadMappings_c
 		
 		/**
@@ -240,7 +258,7 @@ export module rgl {
 		 * @param {string | Map.<number, Mapping>} map - Load new mappings
 		 * @param {Map.<number, Mapping>} orig - Mappings to override
 		 */
-		public async loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>> {
+		public static async loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>> {
 			debug("RGL.loadMappings:", util.inspect(orig, { breakLength: Infinity }));
 
 			if (typeof map === "string") {
@@ -267,6 +285,6 @@ export module rgl {
 
 	} //RGL
 
-} //RGL
+} //rgl
 
 export default rgl;

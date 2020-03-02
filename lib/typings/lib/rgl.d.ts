@@ -45,8 +45,12 @@ export declare module rgl {
     class RGLTile implements Types.Convertable {
         protected readonly origin: Readonly<Buffer>;
         static decoder: StringDecoder;
+        static mappings_c: Map<number, Mapping>;
+        static mappings_b: Map<number, Mapping>;
+        static mappings_s: Map<number, Mapping>;
         private static trim;
         protected precalc: string;
+        private reserved;
         protected constructor(origin: Readonly<Buffer>);
         serialize(): Buffer;
         static parse(chunk: Readonly<Buffer>): RGLTile;
@@ -85,6 +89,7 @@ export declare module rgl {
         mappings_b: Map<number, Mapping>;
         _Map: typeof RGLMap;
         _Tile: typeof RGLTile;
+        protected static mappings_s: Map<number, Mapping>;
         protected constructor(autoconfig?: boolean, mappings_c?: Map<number, Mapping>, mappings_b?: Map<number, Mapping>, _Map?: typeof RGLMap, _Tile?: typeof RGLTile);
         loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
         loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
@@ -96,7 +101,7 @@ export declare module rgl {
          * @param {string | Map.<number, Mapping>} map - Load new mappings
          * @param {Map.<number, Mapping>} orig - Mappings to override
          */
-        loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>>;
+        static loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>>;
         /**
          * Start an instance of RGL.
          *

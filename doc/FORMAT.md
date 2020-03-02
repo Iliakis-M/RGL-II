@@ -35,4 +35,4 @@ Provide the `.js` files of the mappings to the engine to override.
 The framework automatically detects `RGLMappings_c.js` and `RGLMappings_b.js` at local directory.
 Fallback uses builtin mapping.
 
-**The `RGLMappings_*` files shall export a `Map< 0 <= number <= 255, string Function(string)>` object.**
+**The `RGLMappings_*` files shall export a `Map< 0 <= number <= 255 ,  (string) => string >` object.**
