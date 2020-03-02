@@ -4,7 +4,8 @@
  * @since 2020
  */
 /// <reference types="node" />
-export declare module RGL {
+import { StringDecoder } from "string_decoder";
+export declare module rgl {
     /**
      * Container of Errors.
      */
@@ -12,6 +13,7 @@ export declare module RGL {
         const ENOBIN: TypeError;
         const ENOBUF: TypeError;
         const EBADBUF: RangeError;
+        const EBADTPYE: TypeError;
     }
     /**
      * Container of ADT contracts.
@@ -34,10 +36,18 @@ export declare module RGL {
         }
     }
     /**
+     * 'Mapping' type.
+     */
+    export type Mapping = (text: string) => string;
+    /**
      * Responsible for representing Chunks.
      */
     class RGLTile implements Types.Convertable {
-        protected constructor();
+        protected readonly origin: Readonly<Buffer>;
+        static decoder: StringDecoder;
+        private static trim;
+        protected precalc: string;
+        protected constructor(origin: Readonly<Buffer>);
         serialize(): Buffer;
         static parse(chunk: Readonly<Buffer>): RGLTile;
     }
@@ -45,8 +55,13 @@ export declare module RGL {
      * Responsible for parsing and stripping Chunks.
      */
     class RGLMap implements Types.Convertable {
-        protected _fromFile: Readonly<string>;
-        protected constructor(_fromFile?: Readonly<string>);
+        protected reserved: Buffer;
+        protected size: Buffer;
+        protected tiles: RGLTile[];
+        protected trailing: Buffer;
+        protected _fromFile: string;
+        private static readonly MAGIC;
+        protected constructor(reserved?: Buffer, size?: Buffer, tiles?: RGLTile[], trailing?: Buffer, _fromFile?: string);
         serialize(): Buffer;
         /**
          * Store 'T' to writable 'file'.
@@ -66,9 +81,22 @@ export declare module RGL {
      * Responsible for controlling transitions and settings.
      */
     export class RGL {
-        static readonly Tile: typeof RGLTile;
-        static readonly Map: typeof RGLMap;
-        protected constructor(...params: any[]);
+        mappings_c: Map<number, Mapping>;
+        mappings_b: Map<number, Mapping>;
+        _Map: typeof RGLMap;
+        _Tile: typeof RGLTile;
+        protected constructor(autoconfig?: boolean, mappings_c?: Map<number, Mapping>, mappings_b?: Map<number, Mapping>, _Map?: typeof RGLMap, _Tile?: typeof RGLTile);
+        loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
+        loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
+        loadMappings_b(path?: Readonly<string>): Promise<Map<number, Mapping>>;
+        loadMappings_b(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
+        /**
+         * Include custom mappings.
+         *
+         * @param {string | Map.<number, Mapping>} map - Load new mappings
+         * @param {Map.<number, Mapping>} orig - Mappings to override
+         */
+        loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>>;
         /**
          * Start an instance of RGL.
          *
@@ -78,5 +106,5 @@ export declare module RGL {
     }
     export {};
 }
-export default RGL;
+export default rgl;
 //# sourceMappingURL=rgl.d.ts.map

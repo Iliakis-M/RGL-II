@@ -9,15 +9,21 @@
 import * as util from "util";
 import * as fs from "fs-extra";
 import * as assert from "assert";
+import * as path from "path";
+import chalk from "chalk";
 import { StringDecoder } from "string_decoder";
 
 const debug = util.debuglog("RGL"),
 	debug_v = util.debuglog("RGLv"),
 	debug_e = util.debuglog("RGLe"),
-	decoder = new StringDecoder("utf8");  // Variable type??
+	voidfn: () => void = () => { };
 
-export module RGL {
+export module rgl {
 	debug("RGL loaded.");
+
+
+	const _mappings_c: Map<number, Mapping> = require(path.resolve(__dirname, "..", "..", "RGLMappings_c.js")),
+		_mappings_b: Map<number, Mapping> = require(path.resolve(__dirname, "..", "..", "RGLMappings_b.js"));
 	
 
 	/**
@@ -27,6 +33,7 @@ export module RGL {
 		export const ENOBIN = new TypeError("Buffer is not binary.");
 		export const ENOBUF = new TypeError("Not a Buffer.");
 		export const EBADBUF = new RangeError("Bad data, Wrong size or format.");
+		export const EBADTPYE = new TypeError("Bad parameter type.");
 	} //Errors
 
 	/**
@@ -56,7 +63,11 @@ export module RGL {
 	/**
 	 * 'Class' type.
 	 */
-	type Class<T> = new(...args: any[]) => T;
+	type Class<T> = new (...args: any[]) => T;
+	/**
+	 * 'Mapping' type.
+	 */
+	export type Mapping = (text: string) => string;
 
 
 	/**
@@ -64,8 +75,16 @@ export module RGL {
 	 */
 	class RGLTile implements Types.Convertable {
 
-		protected constructor() {
+		public static decoder: StringDecoder = new StringDecoder("utf8");
+		private static trim: RegExp = /\u0000/gim;
 
+		protected precalc: string = "";
+
+
+		protected constructor(protected readonly origin: Readonly<Buffer>) {
+			assert.ok(origin.length == 8, Errors.EBADBUF);
+
+			this.precalc = RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, '');  // TODO: Colors!
 		} //ctor
 
 
@@ -74,17 +93,26 @@ export module RGL {
 		} //serialize
 
 		public static parse(chunk: Readonly<Buffer>): RGLTile {
-			return new RGLTile;
+			return new RGLTile(chunk);
 		} //parse
 
-	} //Tile
+	} //RGLTile
 
 	/**
 	 * Responsible for parsing and stripping Chunks.
 	 */
 	class RGLMap implements Types.Convertable {
 
-		protected constructor(protected _fromFile: Readonly<string> = "") {
+		private static readonly MAGIC: Buffer = Buffer.from([0x03, 0x00, 0x00, 0x00, 0x01]);
+
+
+		protected constructor(
+			protected reserved: Buffer = Buffer.alloc(3, 0),
+			protected size: Buffer = Buffer.alloc(2, 0),
+			protected tiles: RGLTile[] = [],
+			protected trailing: Buffer = Buffer.allocUnsafe(0),
+			protected _fromFile: string = ""
+		) {
 
 		} //ctor
 
@@ -108,7 +136,16 @@ export module RGL {
 			assert.ok(Buffer.isEncoding("binary"), Errors.ENOBIN);
 			assert.ok(data.length >= 9, Errors.EBADBUF);
 
-			return new RGL.Map;
+			const map: RGLMap = new RGLMap(data.slice(0, 3), data.slice(7, 9));
+
+			let idx: number = 9;
+
+			while (idx < data.length && !data.slice(idx, idx + 5).equals(RGLMap.MAGIC))
+				map.tiles.push(RGLTile.parse(data.slice(idx, idx += 8)));
+
+			if (idx != data.length) map.trailing = data.slice(idx + 5);
+
+			return map;
 		} //parse
 		/**
 		 * Read Buffer from 'file'.
@@ -145,7 +182,7 @@ export module RGL {
 							for await (let chunk of str) data += chunk;
 							
 							str.once("close", () => {
-								const map: RGLMap = RGL.Map.parse(Buffer.from(data, "binary"));
+								const map: RGLMap = RGLMap.parse(Buffer.from(data, "binary"));
 
 								map._fromFile = file;
 
@@ -157,21 +194,67 @@ export module RGL {
 			});
 		} //parseFile
 
-	} //Map
+	} //RGLMap
 
 	/**
 	 * Responsible for controlling transitions and settings.
 	 */
 	export class RGL {
 
-		public static readonly Tile: typeof RGLTile = RGLTile;
-		public static readonly Map: typeof RGLMap = RGLMap;
+		protected constructor(
+			autoconfig: boolean = true,
+			public mappings_c: Map<number, Mapping> = _mappings_c,
+			public mappings_b: Map<number, Mapping> = _mappings_b,
+			public _Map: typeof RGLMap = RGLMap,
+			public _Tile: typeof RGLTile = RGLTile
 
+		) {
+			if (!chalk.supportsColor) console.warn("Terminal colors are not supported!");
 
-		protected constructor(...params: any[]) {
+			this.mappings_c = new Map<number, Mapping>(mappings_c);
 
+			if (autoconfig) {
+				Promise.all([
+					this.loadMappings_c(),
+					this.loadMappings_b()
+				]).catch(() => debug_e("RGL.autoconf: EMAPPING"));
+			}
 		} //ctor
 
+
+		public async loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
+		public loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
+		public loadMappings_c(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_c.js"): Promise<Map<number, Mapping>> {
+			return this.loadMappings(map, this.mappings_c);
+		} //loadMappings_c
+
+		public async loadMappings_b(path?: Readonly<string>): Promise<Map<number, Mapping>>;
+		public loadMappings_b(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
+		public loadMappings_b(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_b.js"): Promise<Map<number, Mapping>> {
+			return this.loadMappings(map, this.mappings_b);
+		} //loadMappings_c
+		
+		/**
+		 * Include custom mappings.
+		 * 
+		 * @param {string | Map.<number, Mapping>} map - Load new mappings
+		 * @param {Map.<number, Mapping>} orig - Mappings to override
+		 */
+		public async loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>> {
+			debug("RGL.loadMappings:", util.inspect(orig, { breakLength: Infinity }));
+
+			if (typeof map === "string") {
+				delete require.cache[require.resolve(map)];
+
+				const data: Map<number, Mapping> = require(map);
+
+				for (let sig of data) orig.set(sig[0], sig[1]);
+			} else if (map instanceof Map) {
+				for (let sig of map) orig.set(sig[0], sig[1]);
+			} else throw Errors.EBADTPYE;
+
+			return orig;
+		} //loadMappings
 
 		/**
 		 * Start an instance of RGL.
@@ -186,4 +269,4 @@ export module RGL {
 
 } //RGL
 
-export default RGL;
+export default rgl;
