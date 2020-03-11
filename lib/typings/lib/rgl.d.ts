@@ -26,7 +26,7 @@ export declare module rgl {
             /**
              * Convert 'T' to writable Buffer.
              */
-            serialize(): Buffer;
+            serialize: Buffer;
             /**
              * Convert Buffer to 'T'.
              *
@@ -49,11 +49,15 @@ export declare module rgl {
         static mappings_b: Map<number, Mapping>;
         static mappings_s: Map<number, Mapping>;
         private static trim;
+        private static _idcntr;
         protected precalc: string;
         private reserved;
+        protected readonly _id: number;
         protected constructor(origin: Readonly<Buffer>);
-        serialize(): Buffer;
+        get serialize(): Buffer;
         static parse(chunk: Readonly<Buffer>): RGLTile;
+        toString(): string;
+        [Symbol.toPrimitive](hint: string): string | this;
     }
     /**
      * Responsible for parsing and stripping Chunks.
@@ -65,14 +69,17 @@ export declare module rgl {
         protected trailing: Buffer;
         protected _fromFile: string;
         private static readonly MAGIC;
+        private static readonly RGL;
+        private static _idcntr;
+        protected readonly _id: number;
         protected constructor(reserved?: Buffer, size?: Buffer, tiles?: RGLTile[], trailing?: Buffer, _fromFile?: string);
-        serialize(): Buffer;
+        get serialize(): Buffer;
         /**
          * Store 'T' to writable 'file'.
          *
          * @param {string} file - Target file
          */
-        serializeFile(file?: Readonly<string>): Buffer;
+        serializeFile(file?: Readonly<string>): Promise<Buffer>;
         static parse(data: Readonly<Buffer>): RGLMap;
         /**
          * Read Buffer from 'file'.
@@ -80,9 +87,14 @@ export declare module rgl {
          * @param {string} file - Target file
          */
         static parseFile(file: Readonly<string>): Promise<RGLMap>;
+        print(): void;
+        toString(): string;
+        [Symbol.toPrimitive](hint: string): string | this;
     }
     /**
      * Responsible for controlling transitions and settings.
+     *
+     * TODO: Add controls.
      */
     export class RGL {
         mappings_c: Map<number, Mapping>;

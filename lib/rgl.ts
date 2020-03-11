@@ -49,7 +49,7 @@ export module rgl {
 			/**
 			 * Convert 'T' to writable Buffer.
 			 */
-			serialize(): Buffer;
+			serialize: Buffer;
 			/**
 			 * Convert Buffer to 'T'.
 			 * 
@@ -81,26 +81,39 @@ export module rgl {
 		static mappings_b: Map<number, Mapping>;
 		static mappings_s: Map<number, Mapping>;
 		private static trim: RegExp = /\u0000/gim;
+		private static _idcntr: number = 0;
 
 		protected precalc: string = "";
 		private reserved: number;
+		protected readonly _id: number = RGLTile._idcntr++;
 
 
 		protected constructor(protected readonly origin: Readonly<Buffer>) {
 			assert.ok(origin.length == 8, Errors.EBADBUF);
 
+			this.origin = Buffer.from(origin);
 			this.precalc = (RGLTile.mappings_s.get(origin[6]) || (t => t))((RGLTile.mappings_b.get(origin[5]) || (t => t))((RGLTile.mappings_c.get(origin[4]) || (t => t))(RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, ''))));
 			this.reserved = origin[7];
 		} //ctor
 
 
-		public serialize(): Buffer {
-			return Buffer.allocUnsafe(0);
+		public get serialize(): Buffer {
+			return Buffer.from(this.origin);
 		} //serialize
 
 		public static parse(chunk: Readonly<Buffer>): RGLTile {
 			return new RGLTile(chunk);
 		} //parse
+
+
+		public toString(): string {
+			return this.precalc;
+		} //toString
+
+		public [Symbol.toPrimitive](hint: string) {
+			if (hint === "string") return this.toString();
+			else return this;
+		}
 
 	} //RGLTile
 
@@ -110,29 +123,45 @@ export module rgl {
 	class RGLMap implements Types.Convertable {
 
 		private static readonly MAGIC: Buffer = Buffer.from([0x03, 0x00, 0x00, 0x00, 0x01]);
+		private static readonly RGL: Buffer = Buffer.from([0x52, 0x47, 0x4C, 0x02]);
+		private static _idcntr: number = 0;
+
+		protected readonly _id: number = RGLMap._idcntr++;
 
 
 		protected constructor(
 			protected reserved: Buffer = Buffer.alloc(3, 0),
 			protected size: Buffer = Buffer.alloc(2, 0),
-			protected tiles: RGLTile[] = [],
+			protected tiles: RGLTile[] = [ ],
 			protected trailing: Buffer = Buffer.allocUnsafe(0),
 			protected _fromFile: string = ""
 		) {
-
+			this._fromFile = path.resolve(path.normalize(_fromFile));
 		} //ctor
 
 
-		public serialize(): Buffer {
-			return Buffer.allocUnsafe(0);
+		public get serialize(): Buffer {
+			let ret: Buffer = Buffer.concat([this.reserved, RGLMap.RGL, this.size]);
+			
+			for (let tile of this.tiles) ret = Buffer.concat([ret, tile.serialize]);
+
+			return Buffer.concat([ret, RGLMap.MAGIC, this.trailing ]);
 		} //serialize
 		/**
 		 * Store 'T' to writable 'file'.
 		 *
 		 * @param {string} file - Target file
 		 */
-		public serializeFile(file: Readonly<string> = this._fromFile): Buffer {
-			return Buffer.allocUnsafe(0);
+		public async serializeFile(file: Readonly<string> = this._fromFile): Promise<Buffer> {
+			let data: Buffer;
+			
+			await fs.outputFile(file, data = this.serialize, {
+				mode: 0o751,
+				encoding: "binary",
+				flag: "w"
+			});
+
+			return data;
 		} //serializeFile
 		
 		public static parse(data: Readonly<Buffer>): RGLMap {
@@ -175,7 +204,7 @@ export module rgl {
 						const str: fs.ReadStream = fs.createReadStream(file, {
 							flags: "r",
 							encoding: "binary",
-							mode: fs.constants.S_IRUSR | fs.constants.S_IRGRP | fs.constants.S_IXUSR,
+							mode: fs.constants.S_IRUSR | fs.constants.S_IXGRP,
 							emitClose: true
 						})
 						.once("readable", async () => {
@@ -200,10 +229,26 @@ export module rgl {
 			});
 		} //parseFile
 
+		public print() {
+
+		} //print
+
+
+		public toString(): string {
+			return this.tiles.map((tile: RGLTile): string => tile.toString()).join();
+		} //toString
+
+		public [Symbol.toPrimitive](hint: string) {
+			if (hint === "string") return this.toString();
+			else return this;
+		}
+
 	} //RGLMap
 
 	/**
 	 * Responsible for controlling transitions and settings.
+	 * 
+	 * TODO: Add controls.
 	 */
 	export class RGL {
 
