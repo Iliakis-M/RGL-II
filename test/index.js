@@ -10,4 +10,8 @@ fs.outputFileSync("test/test1.rglmap", Buffer.from([
 	0x03, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04
 ]));
 
-mod._Map.parseFile("test/test1.rglmap").then(console.dir);
+mod._Map.parseFile("test/test1.rglmap").then(map => {
+	console.dir(map);
+
+	map.serializeFile();
+});

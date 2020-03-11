@@ -6,7 +6,7 @@
 This format has the extension `.rglmap`.  
 The format is as follows:
 
-* Three initial reserved bytes.
+* 3 initial reserved bytes.
 * The exact magic-word `RGL` and the byte `02`.
 * The dimensions of the map.
 * The chunks.
