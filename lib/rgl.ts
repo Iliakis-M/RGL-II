@@ -10,6 +10,8 @@ import * as util from "util";
 import * as fs from "fs-extra";
 import * as assert from "assert";
 import * as path from "path";
+import * as tty from "tty";
+import * as event from "events";
 import chalk from "chalk";
 import { StringDecoder } from "string_decoder";
 
@@ -35,6 +37,7 @@ export module rgl {
 		export const ENOBUF = new TypeError("Not a Buffer.");
 		export const EBADBUF = new RangeError("Bad data, Wrong size or format.");
 		export const EBADTPYE = new TypeError("Bad parameter type.");
+		export const ENOTTY = new TypeError("Not a TTY.");
 	} //Errors
 
 	/**
@@ -53,7 +56,7 @@ export module rgl {
 			/**
 			 * Convert Buffer to 'T'.
 			 * 
-			 * @param {!Buffer} data - Strictly a binary buffer
+			 * @param data - Strictly a binary buffer
 			 */
 			parse?(data: Readonly<Buffer>): Convertable;
 		} //Convertable
@@ -65,6 +68,15 @@ export module rgl {
 	 * 'Class' type.
 	 */
 	type Class<T> = new (...args: any[]) => T;
+	/**
+	 * I/O binding type.
+	 */
+	type IO = {
+		input: NodeJS.ReadStream;
+		output: NodeJS.WriteStream;
+		error?: NodeJS.ReadWriteStream;
+		_inpCb?: (data: Buffer) => void;
+	};
 	/**
 	 * 'Mapping' type.
 	 */
@@ -150,7 +162,7 @@ export module rgl {
 		/**
 		 * Store 'T' to writable 'file'.
 		 *
-		 * @param {string} file - Target file
+		 * @param file - Target file
 		 */
 		public async serializeFile(file: Readonly<string> = this._fromFile): Promise<Buffer> {
 			let data: Buffer;
@@ -185,7 +197,7 @@ export module rgl {
 		/**
 		 * Read Buffer from 'file'.
 		 * 
-		 * @param {string} file - Target file
+		 * @param file - Target file
 		 */
 		public static async parseFile(file: Readonly<string>): Promise<RGLMap> {
 			debug(`RGLMap.parseFile: ${file}`);
@@ -229,13 +241,9 @@ export module rgl {
 			});
 		} //parseFile
 
-		public print() {
-
-		} //print
-
 
 		public toString(): string {
-			return this.tiles.map((tile: RGLTile): string => tile.toString()).join();
+			return this.tiles.map((tile: RGLTile): string => tile.toString()).join('');
 		} //toString
 
 		public [Symbol.toPrimitive](hint: string) {
@@ -250,9 +258,12 @@ export module rgl {
 	 * 
 	 * TODO: Add controls.
 	 */
-	export class RGL {
+	export class RGL extends event.EventEmitter {
 
-		protected static mappings_s: Map<number, Mapping> = _mappings_s; 
+		protected static mappings_s: Map<number, Mapping> = new Map<number, Mapping>(_mappings_s);
+
+		protected secureSwitch: boolean = true;
+		protected binds: IO | null = null;
 
 
 		protected constructor(
@@ -263,9 +274,12 @@ export module rgl {
 			public _Tile: typeof RGLTile = RGLTile
 
 		) {
+			super();
+
 			if (!chalk.supportsColor) console.warn("Terminal colors are not supported!");
 
 			this.mappings_c = new Map<number, Mapping>(mappings_c);
+			this.mappings_b = new Map<number, Mapping>(mappings_b);
 
 			if (autoconfig) {
 				Promise.all([
@@ -277,6 +291,8 @@ export module rgl {
 
 					debug("RGL.ctor deffered mappings.");
 				});
+
+				this.bind();
 			}
 
 			this._Tile.mappings_c = this.mappings_c;
@@ -288,20 +304,24 @@ export module rgl {
 		public async loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
 		public loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
 		public loadMappings_c(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_c.js"): Promise<Map<number, Mapping>> {
+			this.emit("_loadColors", map);
+
 			return RGL.loadMappings(map, this.mappings_c);
 		} //loadMappings_c
 
 		public async loadMappings_b(path?: Readonly<string>): Promise<Map<number, Mapping>>;
 		public loadMappings_b(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
 		public loadMappings_b(map: Readonly<string | Map<number, Mapping>> = "RGLMappings_b.js"): Promise<Map<number, Mapping>> {
+			this.emit("_loadBackground", map);
+
 			return RGL.loadMappings(map, this.mappings_b);
 		} //loadMappings_c
 		
 		/**
 		 * Include custom mappings.
 		 * 
-		 * @param {string | Map.<number, Mapping>} map - Load new mappings
-		 * @param {Map.<number, Mapping>} orig - Mappings to override
+		 * @param map - Load new mappings
+		 * @param orig - Mappings to override
 		 */
 		public static async loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>> {
 			debug("RGL.loadMappings:", util.inspect(orig, { breakLength: Infinity }));
@@ -318,6 +338,45 @@ export module rgl {
 
 			return orig;
 		} //loadMappings
+
+		/**
+		 * Bind the RGL engine to I/O.
+		 * 
+		 * @param inp - The target user-input stream to bind, must be a TTY
+		 * @param out - The target user-input stream to bind, must be a TTY
+		 */
+		bind(inp: tty.ReadStream = (this.binds ? this.binds.input : process.stdin) || process.stdin, out: tty.WriteStream = (this.binds ? this.binds.output : process.stdout) || process.stdout): this {
+			debug("RGL.bind: " + this.binds);
+
+			assert.ok(inp.isTTY && out.isTTY, Errors.ENOTTY);
+
+			if (!!this.binds && !!this.binds!.input) {
+				debug("RGL.bind unbound.");
+
+				this.binds!.input.setRawMode(false);
+				if (!!this.binds!._inpCb) this.binds!.input.removeListener("data", this.binds!._inpCb);
+			}
+
+			this.binds = <IO>{
+				input: inp,
+				output: out,
+				error: process.stderr
+			};
+
+			this.binds!.input.setRawMode(true);
+
+			this.binds!.input.on("data", this.binds!._inpCb = data => {
+				this.emit("rawkey", data);
+				this.emit("key", data.toString());
+
+				if (this.secureSwitch && data.toString() === '\u0003') {
+					this.emit("_exit");
+					process.exit();
+				}
+			});
+
+			return this;
+		} //bind
 
 		/**
 		 * Start an instance of RGL.

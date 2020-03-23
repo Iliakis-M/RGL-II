@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^8.1.0",
-    "@types/node": "^13.9.0",
+    "@types/node": "^13.9.3",
     "typescript": "^3.8.3"
   },
   "peerDependencies": {},
@@ -70,7 +70,7 @@
   "publishConfig": {},
   "scripts": {
     "start": "node test/index.js",
-    "test": "set NODE_DEBUG=RGL*&&node test/index.js",
+    "test": "set FORCE_COLOR=3&&set NODE_DEBUG=RGL*&&node test/index.js",
     "build": "tsc -w"
   },
   "bundleDependencies": []

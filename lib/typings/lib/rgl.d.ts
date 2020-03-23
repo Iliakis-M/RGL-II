@@ -4,6 +4,8 @@
  * @since 2020
  */
 /// <reference types="node" />
+import * as tty from "tty";
+import * as event from "events";
 import { StringDecoder } from "string_decoder";
 export declare module rgl {
     /**
@@ -14,6 +16,7 @@ export declare module rgl {
         const ENOBUF: TypeError;
         const EBADBUF: RangeError;
         const EBADTPYE: TypeError;
+        const ENOTTY: TypeError;
     }
     /**
      * Container of ADT contracts.
@@ -30,11 +33,20 @@ export declare module rgl {
             /**
              * Convert Buffer to 'T'.
              *
-             * @param {!Buffer} data - Strictly a binary buffer
+             * @param data - Strictly a binary buffer
              */
             parse?(data: Readonly<Buffer>): Convertable;
         }
     }
+    /**
+     * I/O binding type.
+     */
+    type IO = {
+        input: NodeJS.ReadStream;
+        output: NodeJS.WriteStream;
+        error?: NodeJS.ReadWriteStream;
+        _inpCb?: (data: Buffer) => void;
+    };
     /**
      * 'Mapping' type.
      */
@@ -77,17 +89,16 @@ export declare module rgl {
         /**
          * Store 'T' to writable 'file'.
          *
-         * @param {string} file - Target file
+         * @param file - Target file
          */
         serializeFile(file?: Readonly<string>): Promise<Buffer>;
         static parse(data: Readonly<Buffer>): RGLMap;
         /**
          * Read Buffer from 'file'.
          *
-         * @param {string} file - Target file
+         * @param file - Target file
          */
         static parseFile(file: Readonly<string>): Promise<RGLMap>;
-        print(): void;
         toString(): string;
         [Symbol.toPrimitive](hint: string): string | this;
     }
@@ -96,12 +107,14 @@ export declare module rgl {
      *
      * TODO: Add controls.
      */
-    export class RGL {
+    export class RGL extends event.EventEmitter {
         mappings_c: Map<number, Mapping>;
         mappings_b: Map<number, Mapping>;
         _Map: typeof RGLMap;
         _Tile: typeof RGLTile;
         protected static mappings_s: Map<number, Mapping>;
+        protected secureSwitch: boolean;
+        protected binds: IO | null;
         protected constructor(autoconfig?: boolean, mappings_c?: Map<number, Mapping>, mappings_b?: Map<number, Mapping>, _Map?: typeof RGLMap, _Tile?: typeof RGLTile);
         loadMappings_c(path?: Readonly<string>): Promise<Map<number, Mapping>>;
         loadMappings_c(map?: Readonly<Map<number, Mapping>>): Promise<Map<number, Mapping>>;
@@ -110,10 +123,17 @@ export declare module rgl {
         /**
          * Include custom mappings.
          *
-         * @param {string | Map.<number, Mapping>} map - Load new mappings
-         * @param {Map.<number, Mapping>} orig - Mappings to override
+         * @param map - Load new mappings
+         * @param orig - Mappings to override
          */
         static loadMappings(map: Readonly<string | Map<number, Mapping>>, orig: Map<number, Mapping>): Promise<Map<number, Mapping>>;
+        /**
+         * Bind the RGL engine to I/O.
+         *
+         * @param inp - The target user-input stream to bind, must be a TTY
+         * @param out - The target user-input stream to bind, must be a TTY
+         */
+        bind(inp?: tty.ReadStream, out?: tty.WriteStream): this;
         /**
          * Start an instance of RGL.
          *

@@ -1,6 +1,10 @@
 
 # Change Log
 
+## 2020-03-23T15:26:31.820Z
+
+Initial implementation of `bind` and Events System.
+
 ## 2020-03-11T15:18:37.789Z
 
 Implemented Serialization, Windows does not support file modes properly...
