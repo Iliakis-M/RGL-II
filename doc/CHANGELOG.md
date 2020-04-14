@@ -1,6 +1,10 @@
 
 # Change Log
 
+## 2020-04-14T17:50:01.944Z
+
+First implementation of `rgl keys` binary, might need to consider singleton approach...
+
 ## 2020-04-14T11:42:32.834Z
 
 Comment re-write, code organisation.

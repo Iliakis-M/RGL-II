@@ -150,6 +150,18 @@ export declare module rgl {
          * @param out - The target user-input stream to bind, must be a TTY
          */
         bind(inp?: tty.ReadStream, out?: tty.WriteStream, err?: NodeJS.ReadWriteStream): this;
+        emit(event: "key", data: string): boolean;
+        emit(event: "rawkey", data: Buffer): boolean;
+        emit(event: "_exit"): boolean;
+        emit(event: "_loadBackground", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+        emit(event: "_loadColors", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+        emit(event: string | symbol, ...args: any[]): boolean;
+        on(event: "key", listener: (data: string) => void): this;
+        on(event: "rawkey", listener: (data: Buffer) => void): this;
+        on(event: "_exit", listener: () => void): this;
+        on(event: "_loadBackground", listener: (data: string | Readonly<Map<number, Types.Mapping>>) => void): this;
+        on(event: "_loadColors", listener: (data: string | Readonly<Map<number, Types.Mapping>>) => void): this;
+        on(event: string | symbol, listener: (...args: any[]) => void): this;
         /**
          * Start an instance of RGL.
          *

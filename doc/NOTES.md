@@ -39,5 +39,5 @@ Three channels are available:
 
 2. Third-Party
 
-   * fs-extra
-   * chalk
+   * `fs-extra`
+   * `chalk`

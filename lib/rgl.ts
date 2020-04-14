@@ -404,6 +404,28 @@ export module rgl {
 			return this;
 		} //bind
 		
+		public emit(event: "key", data: string): boolean;
+		public emit(event: "rawkey", data: Buffer): boolean;
+		public emit(event: "_exit"): boolean;
+		public emit(event: "_loadBackground", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+		public emit(event: "_loadColors", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+		public emit(event: string | symbol, ...args: any[]): boolean;
+		public emit(event: string | symbol, ...args: any[]): boolean {
+			return super.emit(event, ...args);
+		} //emit
+		
+		public on(event: "key", listener: (data: string) => void): this;
+		public on(event: "rawkey", listener: (data: Buffer) => void): this;
+		public on(event: "_exit", listener: () => void): this;
+		public on(event: "_loadBackground", listener: (data: string | Readonly<Map<number, Types.Mapping>>) => void): this;
+		public on(event: "_loadColors", listener: (data: string | Readonly<Map<number, Types.Mapping>>) => void): this;
+		public on(event: string | symbol, listener: (...args: any[]) => void): this;
+		public on(event: string | symbol, listener: (...args: any[]) => void): this {
+			return super.on(event, listener);
+		} //on
+		
+		/* Implement whole events, :remove!! */
+		
 		/**
 		 * Start an instance of RGL.
 		 * 

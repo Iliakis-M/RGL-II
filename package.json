@@ -20,11 +20,12 @@
     "*"
   ],
   "main": "./dist/lib/rgl.js",
+  "bin": "./dist/bin/rgl.js",
   "browser": false,
   "man": [],
   "directories": {
     "lib": "./lib",
-    "bin": "./bin",
+    "bin": "./dist/bin",
     "man": "./man",
     "doc": "./doc",
     "example": "./test",
