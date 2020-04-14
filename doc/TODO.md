@@ -13,4 +13,4 @@ All emitted keys shall be handled by a single or separate callback.
 
 ### Bugs
 
-1) Calling `tty.setRawMode(true)` on `process.stdin` right after setting it to `false` blocks the process.
+1) _NodeJS_: Calling `tty.setRawMode(true)` on `process.stdin` right after setting it to `false` blocks the process.

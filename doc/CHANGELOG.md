@@ -1,6 +1,10 @@
 
 # Change Log
 
+## 2020-04-14T11:42:32.834Z
+
+Comment re-write, code organisation.
+
 ## 2020-03-23T15:26:31.820Z
 
 Initial implementation of `bind` and Events System.
