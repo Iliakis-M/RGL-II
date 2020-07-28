@@ -7,15 +7,15 @@ This format has the extension `.rglmap`.
 The format is as follows:
 
 * 3 initial reserved bytes.
-* The exact magic-word `RGL` and the byte `02`.
-* The dimensions of the map.
+* The exact magic-word `RGL` and the byte `02` (4 bytes).
+* The dimensions of the map (2 bytes).
 * The chunks.
-  * 4 bytes character (null-padded).
+  * 4 bytes character (null-padded at MS).
   * 1 byte color mapping.
   * 1 byte background color mapping.
   * 1 byte bitmask style mapping.
   * 1 byte reserved.
-* Any trailing headings after the `03 00 00 00 01` chunk.
+* Any trailing headings after the optional `03 00 00 00 01` chunk.
 
 **Minimum size allowed is <u>_9_</u> bytes.**
 

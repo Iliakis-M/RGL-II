@@ -12,11 +12,12 @@ export declare module rgl {
      * Container of Errors.
      */
     export namespace Errors {
-        const ENOBIN: TypeError;
-        const ENOBUF: TypeError;
-        const EBADBUF: RangeError;
-        const EBADTPYE: TypeError;
-        const ENOTTY: TypeError;
+        const ENOBIN: Error;
+        const ENOBUF: Error;
+        const EBADBUF: Error;
+        const EBADTPYE: Error;
+        const ENOTTY: Error;
+        const EBADBIND: Error;
     }
     /**
      * Container of ADT contracts.
@@ -53,6 +54,10 @@ export declare module rgl {
          */
         type Mapping = (text: string) => string;
     }
+    export namespace util {
+        function idxToCrd(idx: number, sz: number): [number, number];
+        function crdToIdx(crd: [number, number], sz: number): number;
+    }
     /**
      * Responsible for representing Chunks.
      */
@@ -67,6 +72,8 @@ export declare module rgl {
         private readonly _id;
         protected readonly precalc: string;
         protected readonly reserved: number;
+        coords: [number, number];
+        parent?: Readonly<RGLMap>;
         protected constructor(origin: Readonly<Buffer>);
         get serialize(): Buffer;
         /**
@@ -74,7 +81,7 @@ export declare module rgl {
          *
          * @param {Readonly<Buffer>} chunk
          */
-        static parse(chunk: Readonly<Buffer>): RGLTile;
+        static parse(chunk: Readonly<Buffer | RGLTile>, parent?: Readonly<RGLMap>): RGLTile;
         toString(): string;
         [Symbol.toPrimitive](hint: string): string | this;
     }
@@ -91,6 +98,7 @@ export declare module rgl {
         private static readonly RGL;
         private static _idcntr;
         private readonly _id;
+        protected trans: [number, number];
         protected constructor(reserved?: Buffer, size?: Buffer, tiles?: RGLTile[], trailing?: Buffer, _fromFile?: string);
         get serialize(): Buffer;
         /**
@@ -111,6 +119,11 @@ export declare module rgl {
          * @param file - Target file
          */
         static parseFile(file: Readonly<string>): Promise<RGLMap>;
+        protected _sortTiles(tiles?: RGLTile[]): void;
+        /**
+         * Check validity of tile's coords.
+         */
+        checkValidity?(): boolean;
         toString(): string;
         [Symbol.toPrimitive](hint: string): string | this;
     }
@@ -150,6 +163,7 @@ export declare module rgl {
          * @param out - The target user-input stream to bind, must be a TTY
          */
         bind(inp?: tty.ReadStream, out?: tty.WriteStream, err?: NodeJS.ReadWriteStream): this;
+        unbind(): this;
         emit(event: "key", data: string): boolean;
         emit(event: "rawkey", data: Buffer): boolean;
         emit(event: "_exit"): boolean;

@@ -1,9 +1,11 @@
 
 # TODOs
 
-- [x] Implement Serialization.  
-- [ ] Reconsider Class structure(?)  
+- [x] Implement Serialization.
+- [x] Reconsider Class structure(?)
 - [ ] Implement Binary help Utility (Map Builder, Execution Framework, Graphical Web Interface)
+- [ ] Implement calculated coordinate-mapped printing based on size
+- [x] Implement coord-to-idx converting functions and tile sorting util
 
 ## Specifications
 

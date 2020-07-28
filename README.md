@@ -1,12 +1,13 @@
 
 # RGL
 
-An engine for _RogueLike_ games.
+An engine for _RogueLike_ games.  
 Or colored console text.
 
 ## Restrictions
 
 1) `RGL~_Tile` field manipulates the original `RGLTile`-like class, meaning that if you have multiple `RGL` instances using the same `RGL~_Tile` reference, you cannot have different mappings for each. Instead, reload the module or copy/clone that class.
+2) `RGLTile`s once bound to an `RGLMap`, they belong to that map exclusively, clone if needed.
 
 ### Mappings
 

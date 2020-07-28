@@ -1,6 +1,14 @@
 
 # Change Log
 
+## 2020-07-28T14:00:44.828Z
+
+Implemented util namespace and coordinate conversion/sorting functions.
+
+## 2020-07-26T09:06:25.379Z
+
+Implemented `unbind` and some touches.
+
 ## 2020-04-14T17:50:01.944Z
 
 First implementation of `rgl keys` binary, might need to consider singleton approach...

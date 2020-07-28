@@ -6,18 +6,18 @@
 
 "use strict";
 
-import * as util from "util";
 import * as fs from "fs-extra";
 import * as assert from "assert";
 import * as path from "path";
 import * as tty from "tty";
 import * as event from "events";
-import chalk from "chalk";
+import { inspect, debuglog } from "util";
 import { StringDecoder } from "string_decoder";
+import chalk from "chalk";
 
-const debug = util.debuglog("RGL"),
-	debug_v = util.debuglog("RGLv"),
-	debug_e = util.debuglog("RGLe"),
+const debug = debuglog("RGL"),
+	debug_v = debuglog("RGLv"),
+	debug_e = debuglog("RGLe"),
 	voidfn: () => void = () => { };
 
 export module rgl {
@@ -33,11 +33,12 @@ export module rgl {
 	 * Container of Errors.
 	 */
 	export namespace Errors {
-		export const ENOBIN = new TypeError("Buffer is not binary.");
-		export const ENOBUF = new TypeError("Not a Buffer.");
-		export const EBADBUF = new RangeError("Bad data, Wrong size or format.");
-		export const EBADTPYE = new TypeError("Bad parameter type.");
-		export const ENOTTY = new TypeError("Not a TTY.");
+		export const ENOBIN: Error = new TypeError("Buffer is not binary.");
+		export const ENOBUF: Error = new TypeError("Not a Buffer.");
+		export const EBADBUF: Error = new RangeError("Bad data, Wrong size or format.");
+		export const EBADTPYE: Error = new TypeError("Bad parameter type.");
+		export const ENOTTY: Error = new TypeError("Not a TTY.");
+		export const EBADBIND: Error = new ReferenceError("Bad bindings.");
 	} //Errors
 	
 	/**
@@ -80,6 +81,17 @@ export module rgl {
 		export type Mapping = (text: string) => string;
 	} //Types
 	
+	export namespace util {
+		
+		export function idxToCrd(idx: number, sz: number): [number, number] {
+			return [ idx % sz, Math.floor(idx / sz) ];
+		} //idxToCrd
+		export function crdToIdx(crd: [number, number], sz: number): number {
+			return crd[1] * sz + crd[0];
+		} //crdToIdx
+		
+	} //util
+	
 	
 	/**
 	 * Responsible for representing Chunks.
@@ -96,6 +108,8 @@ export module rgl {
 		private readonly _id: number = RGLTile._idcntr++;
 		protected readonly precalc: string = "";
 		protected readonly reserved: number;
+		coords: [number, number] = [ 0, 0 ];
+		parent?: Readonly<RGLMap>;
 		
 		
 		protected constructor(protected readonly origin: Readonly<Buffer>) {
@@ -108,7 +122,7 @@ export module rgl {
 		
 		
 		public get serialize(): Buffer {
-			debug(`RGLTile.serialize`);
+			//debug(`RGLTile.serialize`);
 			
 			return Buffer.from(this.origin);
 		} //serialize
@@ -118,10 +132,19 @@ export module rgl {
 		 *
 		 * @param {Readonly<Buffer>} chunk
 		 */
-		public static parse(chunk: Readonly<Buffer>): RGLTile {
-			debug(`RGLTile.parse`);
+		public static parse(chunk: Readonly<Buffer | RGLTile>, parent?: Readonly<RGLMap>): RGLTile {
+			//debug(`RGLTile.parse`);
+			let ret: RGLTile;
 			
-			return new RGLTile(chunk);
+			if (chunk instanceof RGLTile) {
+				ret = new RGLTile(chunk.origin);
+				
+				ret.coords = <[number, number]>Array.from(chunk.coords);
+			} else ret = new RGLTile(<Readonly<Buffer>>chunk);
+			
+			ret.parent = parent;
+			
+			return ret;
 		} //parse
 		
 		
@@ -146,6 +169,7 @@ export module rgl {
 		private static _idcntr: number = 0;
 		
 		private readonly _id: number = RGLMap._idcntr++;
+		protected trans: [number, number] = [ 0, 0 ];
 		
 		
 		protected constructor(
@@ -164,9 +188,11 @@ export module rgl {
 			
 			let ret: Buffer = Buffer.concat([this.reserved, RGLMap.RGL, this.size]);
 			
-			for (const tile of this.tiles) ret = Buffer.concat([ret, tile.serialize]);
+			this._sortTiles();
 			
-			return Buffer.concat([ret, RGLMap.MAGIC, this.trailing ]);
+			for (const tile of this.tiles) ret = Buffer.concat([ ret, tile.serialize ]);
+			
+			return Buffer.concat([ ret, RGLMap.MAGIC, this.trailing ]);
 		} //serialize
 		/**
 		 * Store Convertable into a writable 'file'.
@@ -201,10 +227,17 @@ export module rgl {
 			
 			const map: RGLMap = new RGLMap(data.slice(0, 3), data.slice(7, 9));
 			
-			let idx: number = 9;
+			let idx: number = 9,
+				cntr: number = 0;
 			
-			while (idx < data.length && !data.slice(idx, idx + 5).equals(RGLMap.MAGIC))
-				map.tiles.push(RGLTile.parse(data.slice(idx, idx += 8)));
+			while (idx < data.length && !data.slice(idx, idx + 5).equals(RGLMap.MAGIC)) {
+				let tile: RGLTile;
+				
+				map.tiles.push(tile = RGLTile.parse(data.slice(idx, idx += 8)));
+				
+				tile.parent = map;
+				tile.coords = [ cntr % map.size[0], Math.floor(cntr / map.size[0]) ];
+			}
 			
 			if (idx != data.length) {
 				debug_v(`RGLMap.parse: has trailing`);
@@ -260,6 +293,17 @@ export module rgl {
 				});
 			});
 		} //parseFile
+		
+		protected _sortTiles(tiles: RGLTile[] = this.tiles): void {
+			tiles.sort((a: Readonly<RGLTile>, b: Readonly<RGLTile>): number => util.crdToIdx(a.coords, this.size[0]) - util.crdToIdx(b.coords, this.size[0]));
+		} //_sortTiles
+		
+		/**
+		 * Check validity of tile's coords.
+		 */
+		checkValidity?(): boolean {
+			return true;
+		} //checkValidity
 		
 		
 		public toString(): string {
@@ -350,7 +394,7 @@ export module rgl {
 		 * @param orig - Mappings to override
 		 */
 		public static async loadMappings(map: Readonly<string | Map<number, Types.Mapping>>, orig: Map<number, Types.Mapping>): Promise<Map<number, Types.Mapping>> {
-			debug("RGL.loadMappings:", util.inspect(orig, { breakLength: Infinity }));
+			debug("RGL.loadMappings:", inspect(orig, { breakLength: Infinity }));
 			
 			if (typeof map === "string") {
 				delete require.cache[require.resolve(map)];
@@ -386,7 +430,7 @@ export module rgl {
 			this.binds = <Types.IO>{
 				input: inp,
 				output: out,
-				error: err || process.stderr
+				error: err
 			};
 			
 			this.binds!.input.setRawMode(true);
@@ -404,13 +448,24 @@ export module rgl {
 			return this;
 		} //bind
 		
-		public emit(event: "key", data: string): boolean;
-		public emit(event: "rawkey", data: Buffer): boolean;
-		public emit(event: "_exit"): boolean;
-		public emit(event: "_loadBackground", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
-		public emit(event: "_loadColors", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
-		public emit(event: string | symbol, ...args: any[]): boolean;
-		public emit(event: string | symbol, ...args: any[]): boolean {
+		unbind(): this {
+			debug(`RGL.unbind: ${this.binds}`);
+			
+			assert.ok(this.binds && this.binds.input.isTTY && this.binds.output.isTTY, Errors.EBADBIND);
+			
+			this.binds!.input.setRawMode(false);
+			if (!!this.binds!._inpCb) this.binds!.input.removeListener("data", this.binds!._inpCb);
+			
+			return this;
+		} //unbind
+		
+		emit(event: "key", data: string): boolean;
+		emit(event: "rawkey", data: Buffer): boolean;
+		emit(event: "_exit"): boolean;
+		emit(event: "_loadBackground", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+		emit(event: "_loadColors", data: string | Readonly<Map<number, Types.Mapping>>): boolean;
+		emit(event: string | symbol, ...args: any[]): boolean;
+		emit(event: string | symbol, ...args: any[]): boolean {
 			return super.emit(event, ...args);
 		} //emit
 		
@@ -423,8 +478,6 @@ export module rgl {
 		public on(event: string | symbol, listener: (...args: any[]) => void): this {
 			return super.on(event, listener);
 		} //on
-		
-		/* Implement whole events, :remove!! */
 		
 		/**
 		 * Start an instance of RGL.

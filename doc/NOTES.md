@@ -19,6 +19,11 @@ Three channels are available:
 * **RGLTile** precalculates the real output.
 * **RGL** is event-oriented.
 
+### Conventions
+
+* `RGLTile`s can only belong to one `RGLMap` at a time.
+* `RGLTile`s of an `RGLMap` are stored in a sorted manner, volatile array.
+
 ## Class Structure
 
 ### Namespaces
