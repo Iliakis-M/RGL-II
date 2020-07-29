@@ -18,6 +18,7 @@ export declare module rgl {
         const EBADTPYE: Error;
         const ENOTTY: Error;
         const EBADBIND: Error;
+        const EBADPARAM: Error;
     }
     /**
      * Container of ADT contracts.
@@ -40,6 +41,10 @@ export declare module rgl {
          * 'Class' type.
          */
         type Class<T> = new (...args: any[]) => T;
+        /**
+         * Nullable type.
+         */
+        type Nullable<T> = T | null | undefined;
         /**
          * I/O binding type.
          */
@@ -94,12 +99,12 @@ export declare module rgl {
         protected tiles: RGLTile[];
         protected trailing: Buffer;
         protected _fromFile: string;
+        protected trans: [number, number];
         private static readonly MAGIC;
         private static readonly RGL;
         private static _idcntr;
         private readonly _id;
-        protected trans: [number, number];
-        protected constructor(reserved?: Buffer, size?: Buffer, tiles?: RGLTile[], trailing?: Buffer, _fromFile?: string);
+        protected constructor(reserved?: Buffer, size?: Buffer, tiles?: RGLTile[], trailing?: Buffer, _fromFile?: string, trans?: [number, number]);
         get serialize(): Buffer;
         /**
          * Store Convertable into a writable 'file'.
@@ -128,19 +133,35 @@ export declare module rgl {
         [Symbol.toPrimitive](hint: string): string | this;
     }
     /**
-     * Responsible for controlling transitions and settings.
-     *
-     * TODO: Add controls.
+     * Responsible for controlling assets and transitions.
+     */
+    export class RGLGround {
+        protected maplist: Map<string, RGLMap>;
+        protected foreground: Types.Nullable<RGLMap>;
+        protected viewport: [number, number];
+        constructor(maplist?: Map<string, RGLMap>, foreground?: Types.Nullable<RGLMap>, viewport?: [number, number]);
+        /**
+         * Sets the foreground or retrieves.
+         */
+        focus(fg?: RGLMap | string): Types.Nullable<RGLMap>;
+        /**
+         * Add or retrieve a map.
+         */
+        map(name?: string, mp?: RGLMap): IterableIterator<[string, RGLMap]>;
+    }
+    /**
+     * Responsible for controlling events and settings.
      */
     export class RGL extends event.EventEmitter {
+        protected secureSwitch: boolean;
         protected mappings_c: Map<number, Types.Mapping>;
         protected mappings_b: Map<number, Types.Mapping>;
         protected readonly _Map: typeof RGLMap;
         protected readonly _Tile: typeof RGLTile;
+        ground: RGLGround;
         protected static mappings_s: Map<number, Types.Mapping>;
-        protected secureSwitch: boolean;
-        protected binds: Types.IO | null;
-        protected constructor(autoconfig?: boolean, mappings_c?: Map<number, Types.Mapping>, mappings_b?: Map<number, Types.Mapping>, _Map?: typeof RGLMap, _Tile?: typeof RGLTile);
+        protected binds: Types.Nullable<Types.IO>;
+        protected constructor(autoconfig?: boolean, secureSwitch?: boolean, /* Unbind CTRL-C */ mappings_c?: Map<number, Types.Mapping>, mappings_b?: Map<number, Types.Mapping>, _Map?: typeof RGLMap, _Tile?: typeof RGLTile, ground?: RGLGround);
         /**
          * Whether the TTY supports basic colors.
          */

@@ -39,6 +39,7 @@ export module rgl {
 		export const EBADTPYE: Error = new TypeError("Bad parameter type.");
 		export const ENOTTY: Error = new TypeError("Not a TTY.");
 		export const EBADBIND: Error = new ReferenceError("Bad bindings.");
+		export const EBADPARAM: Error = new assert.AssertionError({ message: "Bad parameters size", actual: 1, expected: 2 });
 	} //Errors
 	
 	/**
@@ -64,6 +65,11 @@ export module rgl {
 		 * 'Class' type.
 		 */
 		export type Class<T> = new (...args: any[]) => T;
+		
+		/**
+		 * Nullable type.
+		 */
+		export type Nullable<T> = T | null | undefined;
 		
 		/**
 		 * I/O binding type.
@@ -112,11 +118,13 @@ export module rgl {
 		parent?: Readonly<RGLMap>;
 		
 		
-		protected constructor(protected readonly origin: Readonly<Buffer>) {
+		protected constructor(
+			protected readonly origin: Readonly<Buffer>
+		) {
 			assert.ok(origin.length == 8, Errors.EBADBUF);
 			
 			this.origin = Buffer.from(origin);
-			this.precalc = (RGLTile.mappings_s.get(origin[6]) || (t => t))((RGLTile.mappings_b.get(origin[5]) || (t => t))((RGLTile.mappings_c.get(origin[4]) || (t => t))(RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, ''))));
+			this.precalc = (RGLTile.mappings_s.get(origin[6]) ?? (t => t))((RGLTile.mappings_b.get(origin[5]) ?? (t => t))((RGLTile.mappings_c.get(origin[4]) ?? (t => t))(RGLTile.decoder.write(origin.slice(0, 4)).replace(RGLTile.trim, ''))));
 			this.reserved = origin[7];
 		} //ctor
 		
@@ -169,7 +177,6 @@ export module rgl {
 		private static _idcntr: number = 0;
 		
 		private readonly _id: number = RGLMap._idcntr++;
-		protected trans: [number, number] = [ 0, 0 ];
 		
 		
 		protected constructor(
@@ -177,7 +184,8 @@ export module rgl {
 			protected size: Buffer = Buffer.alloc(2, 0),
 			protected tiles: RGLTile[] = [ ],
 			protected trailing: Buffer = Buffer.allocUnsafe(0),
-			protected _fromFile: string = ""
+			protected _fromFile: string = "",
+			protected trans: [number, number] = [ 0, 0 ]
 		) {
 			this._fromFile = path.resolve(path.normalize(_fromFile));
 		} //ctor
@@ -318,24 +326,62 @@ export module rgl {
 	} //RGLMap
 	
 	/**
-	 * Responsible for controlling transitions and settings.
-	 * 
-	 * TODO: Add controls.
+	 * Responsible for controlling assets and transitions.
+	 */
+	export class RGLGround {
+		
+		
+		constructor(
+			protected maplist: Map<string, RGLMap> = new Map(),
+			protected foreground: Types.Nullable<RGLMap> = null,
+			protected viewport: [number, number] = [ 0, 0 ]
+		) {
+			
+		} //ctor
+		
+		
+		/**
+		 * Sets the foreground or retrieves.
+		 */
+		public focus(fg?: RGLMap | string): Types.Nullable<RGLMap> {
+			if (!!fg) {
+				if (typeof fg === "string") this.foreground = this.maplist.get(fg);
+				else this.foreground = fg;
+			}
+			
+			return this.foreground;
+		} //focus
+		
+		/**
+		 * Add or retrieve a map.
+		 */
+		public map(name?: string, mp?: RGLMap): IterableIterator<[string, RGLMap]> {
+			if (!!mp) this.maplist.set(name!, mp);
+			else if (!!name) assert.fail(Errors.EBADPARAM);
+			
+			return this.maplist.entries();
+		} //map
+		
+	} //RGLGround
+	
+	/**
+	 * Responsible for controlling events and settings.
 	 */
 	export class RGL extends event.EventEmitter {
 		
 		protected static mappings_s: Map<number, Types.Mapping> = new Map<number, Types.Mapping>(_mappings_s);
 		
-		protected secureSwitch: boolean = true;  /* Unbind CTRL-C */
-		protected binds: Types.IO | null = null;
+		protected binds: Types.Nullable<Types.IO> = null;
 		
 		
 		protected constructor(
 			autoconfig: boolean = true,
+			protected secureSwitch: boolean = true,  /* Unbind CTRL-C */
 			protected mappings_c: Map<number, Types.Mapping> = _mappings_c,
 			protected mappings_b: Map<number, Types.Mapping> = _mappings_b,
 			protected readonly _Map: typeof RGLMap = RGLMap,
-			protected readonly _Tile: typeof RGLTile = RGLTile
+			protected readonly _Tile: typeof RGLTile = RGLTile,
+			public ground: RGLGround = new RGLGround()
 		) {
 			super();
 			
@@ -397,9 +443,15 @@ export module rgl {
 			debug("RGL.loadMappings:", inspect(orig, { breakLength: Infinity }));
 			
 			if (typeof map === "string") {
+				let data: Map<number, Types.Mapping>;
+				
 				delete require.cache[require.resolve(map)];
 				
-				const data: Map<number, Types.Mapping> = require(map);
+				try {
+					data = require(map);
+				} catch(e) {
+					data = new Map<number, Types.Mapping>([ ]);
+				}
 				
 				for (let sig of data) orig.set(sig[0], sig[1]);
 			} else if (map instanceof Map) {
@@ -415,7 +467,7 @@ export module rgl {
 		 * @param inp - The target user-input stream to bind, must be a TTY
 		 * @param out - The target user-input stream to bind, must be a TTY
 		 */
-		bind(inp: tty.ReadStream = (this.binds ? this.binds.input : process.stdin) || process.stdin, out: tty.WriteStream = (this.binds ? this.binds.output : process.stdout) || process.stdout, err: NodeJS.ReadWriteStream = (this.binds ? this.binds.error : process.stderr) || process.stderr): this {
+		bind(inp: tty.ReadStream = (this.binds ? this.binds.input : process.stdin) ?? process.stdin, out: tty.WriteStream = (this.binds ? this.binds.output : process.stdout) ?? process.stdout, err: NodeJS.ReadWriteStream = (this.binds ? this.binds.error : process.stderr) ?? process.stderr): this {
 			debug(`RGL.bind: ${this.binds}`);
 			
 			assert.ok(inp.isTTY && out.isTTY, Errors.ENOTTY);

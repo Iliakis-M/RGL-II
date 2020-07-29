@@ -1,6 +1,10 @@
 
 # Change Log
 
+## 2020-07-29T09:03:16.771Z
+
+Made `loadMappings` failsafe, first implementation of `RGLGround`.
+
 ## 2020-07-28T14:00:44.828Z
 
 Implemented util namespace and coordinate conversion/sorting functions.

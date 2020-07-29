@@ -11,7 +11,7 @@ fs.outputFileSync("test/test1.rglmap", Buffer.from([
 ]));
 
 mod._Map.parseFile("test/test1.rglmap").then(map => {
-	console.dir(map);
+	console.dir(map, { depth: 3, showProxy: true, colors: true, breakLength: 80 });
 	console.log(map.toString());
 	mod.bind();
 	mod.on("key", console.log);
